@@ -649,6 +649,7 @@ internal class Nct677X : ISuperIO
             }
         }
 
+        /*
         for (int i = 0; i < _temperaturesSource.Length; i++)
         {
             TemperatureSourceData ts = _temperaturesSource[i];
@@ -675,6 +676,7 @@ internal class Nct677X : ISuperIO
 
             Temperatures[i] = temperature;
         }
+        */
 
         for (int i = 0; i < Fans.Length; i++)
         {

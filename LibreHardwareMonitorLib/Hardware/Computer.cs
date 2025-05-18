@@ -31,6 +31,8 @@ namespace LibreHardwareMonitor.Hardware;
 /// </summary>
 public class Computer : IComputer
 {
+    private static long lastCallTime = 0;
+
     private readonly List<IGroup> _groups = new();
     private readonly object _lock = new();
     private readonly ISettings _settings;
@@ -389,13 +391,29 @@ public class Computer : IComputer
     {
         lock (_lock)
         {
-            // Use a for-loop instead of foreach to avoid a collection modified exception after sleep, even though everything is under a lock.
-            for (int i = 0; i < _groups.Count; i++)
-            {
-                IGroup group = _groups[i];
+            int processID = System.Diagnostics.Process.GetCurrentProcess().Id;
+            int threadID = System.Environment.CurrentManagedThreadId;
+            long callTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            System.Diagnostics.Debug.WriteLine("Computer.Traverse() called by process " + processID + ", thread " + threadID + " at time " + callTime + "\n");
 
-                for (int j = 0; j < group.Hardware.Count; j++)
-                    group.Hardware[j].Accept(visitor);
+            if (callTime - lastCallTime >= 1000)
+            {
+                System.Diagnostics.Debug.WriteLine("Computer.Traverse() called after reasonable time. Last call time " + lastCallTime + ". Executing.");
+
+                // Use a for-loop instead of foreach to avoid a collection modified exception after sleep, even though everything is under a lock.
+                for (int i = 0; i < _groups.Count; i++)
+                {
+                    IGroup group = _groups[i];
+
+                    for (int j = 0; j < group.Hardware.Count; j++)
+                        group.Hardware[j].Accept(visitor);
+                }
+
+                lastCallTime = callTime;
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("Computer.Traverse() called too soon. Last call time " + lastCallTime + ". Skipping.");
             }
         }
     }
