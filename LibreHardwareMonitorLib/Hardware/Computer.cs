@@ -31,7 +31,7 @@ namespace LibreHardwareMonitor.Hardware;
 /// </summary>
 public class Computer : IComputer
 {
-    private static long lastCallTime = 0;
+    private static Dictionary<int, long> lastCallTimes = new Dictionary<int, long>();
 
     private readonly List<IGroup> _groups = new();
     private readonly object _lock = new();
@@ -396,9 +396,14 @@ public class Computer : IComputer
             long callTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
             System.Diagnostics.Debug.WriteLine("Computer.Traverse() called by process " + processID + ", thread " + threadID + " at time " + callTime + "\n");
 
-            if (callTime - lastCallTime >= 1000)
+            if( !lastCallTimes.ContainsKey(threadID))
             {
-                System.Diagnostics.Debug.WriteLine("Computer.Traverse() called after reasonable time. Last call time " + lastCallTime + ". Executing.");
+                lastCallTimes.Add(threadID, callTime);
+            }
+
+            if (callTime - lastCallTimes[threadID] >= 2500)
+            {
+                System.Diagnostics.Debug.WriteLine("Computer.Traverse() called after reasonable time. Last call time for thread ID " + threadID + " was " + lastCallTimes[threadID] + ". Executing.");
 
                 // Use a for-loop instead of foreach to avoid a collection modified exception after sleep, even though everything is under a lock.
                 for (int i = 0; i < _groups.Count; i++)
@@ -409,11 +414,11 @@ public class Computer : IComputer
                         group.Hardware[j].Accept(visitor);
                 }
 
-                lastCallTime = callTime;
+                lastCallTimes[threadID] = callTime;
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine("Computer.Traverse() called too soon. Last call time " + lastCallTime + ". Skipping.");
+                System.Diagnostics.Debug.WriteLine("Computer.Traverse() called too soon. Last call time for thread ID " + threadID + " was " + lastCallTimes[threadID] + ". Skipping.");
             }
         }
     }
